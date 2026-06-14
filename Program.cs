@@ -1,12 +1,20 @@
 using TmsApi;
+// 1. ALWAYS ADD REQUIRED USINGS AT THE TOP
+using Scalar.AspNetCore;
 
-// 1. ALWAYS CREATE THE BUILDER FIRST
+// 2. CREATE THE BUILDER
 var builder = WebApplication.CreateBuilder(args);
 
-// 2. REGISTER REQUIRED CORE SERVICES
+// 3. REGISTER REQUIRED CORE SERVICES
 builder.Services.AddAuthentication("Training");
 builder.Services.AddAuthorization();
 builder.Services.AddControllers(); 
+
+// --- EXERCISE 7: REGISTER OPENAPI SERVICE ---
+builder.Services.AddOpenApi(); 
+
+// --- EXERCISE 6: PROBLEM DETAILS SERVICE ---
+builder.Services.AddProblemDetails();
 
 // Exercise 3: Options Configuration & Startup Validation
 builder.Services.AddOptions<PaymentOptions>()
@@ -14,49 +22,57 @@ builder.Services.AddOptions<PaymentOptions>()
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
-// Exercise 2: Lifetime Registrations (Fixed via IServiceScopeFactory)
+// Exercise 2: Lifetime Registrations
 builder.Services.AddSingleton<EnrollmentWorker>();
 builder.Services.AddScoped<IEnrollmentService, EnrollmentService>();
 
-// Enabling Host Validation
 builder.Host.UseDefaultServiceProvider(options =>
 {
     options.ValidateScopes = true;
     options.ValidateOnBuild = true;
 });
 
-// 3. BUILD THE APPLICATION
+// 4. BUILD THE APPLICATION
 var app = builder.Build();
 
-// 4. PIPELINE MIDDLEWARES & ROUTING
+// 5. ENVIRONMENT-AWARE MIDDLEWARE PIPELINE
 app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 
-// --- EXERCISE 4: TEST ENDPOINT FOR STRUCTURED LOGS ---
-// This is placed right here, after 'app' is built and before 'app.Run()'
-app.MapPost("/api/enrollments/test-all-logs", async (IEnrollmentService enrollmentService) =>
+// --- EXERCISE 7: AUTOMATIC ENVIRONMENT TOGGLE (PRODUCTION VS DEVELOPMENT) ---
+// እዚህ ላይ ኮዱ በራሱ ኮምፒውተሩ ያለበትን ሁነታ አይቶ ይወስናል
+if (app.Environment.IsDevelopment()) 
 {
-    // A. First enrollment -> Expected: [Information] log
-    var record1 = await enrollmentService.EnrollAsync("S-001", "CS-101");
+    // In Development only: Expose OpenAPI and Scalar UI
+    app.MapOpenApi();
+    app.MapScalarApiReference();
+}
+else
+{
+    // In Production only: Activates Exception Handler and Hides Stack Traces
+    app.UseExceptionHandler();
+    app.UseStatusCodePages();
+}
 
-    // B. Duplicate enrollment -> Expected: [Warning] log
-    var record2 = await enrollmentService.EnrollAsync("S-001", "CS-101");
-
-    // C. Get Non-existent ID -> Expected: [Warning] log
-    await enrollmentService.GetByIdAsync("NON_EXISTENT_ID");
-
-    // D. Delete Successful -> Expected: [Information] log
-    await enrollmentService.DeleteAsync(record1.Id);
-
-    // E. Delete Non-existent -> Expected: [Warning] log
-    await enrollmentService.DeleteAsync("NON_EXISTENT_ID");
-
-    return Results.Ok("All structured logs successfully triggered! Check your dotnet console.");
+// --- EXERCISE 6: TEST ROUTE ---
+app.MapGet("/api/error", () =>
+{
+    throw new Exception("Simulated database failure for ProblemDetails testing");
 });
 
-// Routing the controller actions safely
+// --- EXERCISE 4: TEST ENDPOINT FOR STRUCTURED LOGS ---
+app.MapPost("/api/enrollments/test-all-logs", async (IEnrollmentService enrollmentService) =>
+{
+    var record1 = await enrollmentService.EnrollAsync("S-001", "CS-101");
+    var record2 = await enrollmentService.EnrollAsync("S-001", "CS-101");
+    await enrollmentService.GetByIdAsync("NON_EXISTENT_ID");
+    await enrollmentService.DeleteAsync(record1.Id);
+    await enrollmentService.DeleteAsync("NON_EXISTENT_ID");
+    return Results.Ok("All structured logs successfully triggered!");
+});
+
 app.MapControllers();
 
-// 5. RUN THE APPLICATION
+// 6. RUN THE APPLICATION
 app.Run();
