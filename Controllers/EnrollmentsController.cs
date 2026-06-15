@@ -3,55 +3,51 @@ using Microsoft.AspNetCore.Mvc;
 namespace TmsApi.Controllers;
 
 [ApiController]
+// Route explicitly configured in lowercase "api/enrollments" for consistent Scalar UI rendering
 [Route("api/enrollments")]
-public class EnrollmentsController(IEnrollmentService enrollmentService) : ControllerBase
+public class EnrollmentsController : ControllerBase
 {
-    // ==========================================================
-    // PART A: GET Endpoints
-    // ==========================================================
+    private readonly IEnrollmentService _enrollmentService;
 
-    // GET /api/enrollments -> returns 200 OK with all enrollment records
-    [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public EnrollmentsController(IEnrollmentService enrollmentService)
     {
-        var enrollments = await enrollmentService.GetAllAsync();
-        return Ok(enrollments);
+        _enrollmentService = enrollmentService;
     }
 
-    // GET /api/enrollments/{id} -> returns one record or 404
+    [HttpPost]
+    public async Task<IActionResult> Enroll([FromBody] EnrollmentRequest request)
+    {
+        // 1. Extract the structured student model from the request payload
+        var student = request.Student;
+
+        // 2. Extract the structured course model from the request payload
+        var course = request.Course;
+
+        // 3. Forward parameters to the core enrollment service using standard identifiers
+        var record = await _enrollmentService.EnrollAsync(student.Id, course.Code);
+        return Ok(record);
+    }
+
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(string id)
     {
-        var record = await enrollmentService.GetByIdAsync(id);
-        return record is not null ? Ok(record) : NotFound();
+        var record = await _enrollmentService.GetByIdAsync(id);
+        if (record == null) return NotFound();
+        return Ok(record);
     }
 
-    // ==========================================================
-    // PART B: POST with 201 + Location
-    // ==========================================================
-
-    // POST /api/enrollments -> creates and returns 201 with Location header
-    [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CreateEnrollmentRequest request)
-    {
-        var record = await enrollmentService.EnrollAsync(request.StudentId, request.CourseCode);
-        
-        // This sets status to 201 and adds the proper Location header
-        return CreatedAtAction(nameof(GetById), new { id = record.Id }, record);
-    }
-
-    // ==========================================================
-    // PART C: DELETE with 204 / 404
-    // ==========================================================
-
-    // DELETE /api/enrollments/{id} -> returns 204 No Content or 404
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(string id)
     {
-        var deleted = await enrollmentService.DeleteAsync(id);
-        return deleted ? NoContent() : NotFound();
+        var success = await _enrollmentService.DeleteAsync(id);
+        if (!success) return NotFound();
+        return Ok(new { message = "Enrollment successfully deleted" });
     }
 }
 
-// Request model DTO
-public record CreateEnrollmentRequest(string StudentId, string CourseCode);
+// Helper model to capture complex JSON structures directly from client requests
+public class EnrollmentRequest
+{
+    public Student Student { get; set; } = new Student();
+    public Course Course { get; set; } = new Course();
+}
