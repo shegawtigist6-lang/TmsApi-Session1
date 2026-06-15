@@ -7,6 +7,8 @@ public class Course
     // Corresponds to: readonly id: string
     public string Id { get; set; } = string.Empty;
     
+    public string Code { get; set; } = string.Empty;
+
     // Corresponds to: title: string
     public string Title { get; set; } = string.Empty;
     

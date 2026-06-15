@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using TmsApi.Models;
 
 namespace TmsApi.Controllers;
 
@@ -43,11 +44,4 @@ public class EnrollmentsController : ControllerBase
         if (!success) return NotFound();
         return Ok(new { message = "Enrollment successfully deleted" });
     }
-}
-
-// Helper model to capture complex JSON structures directly from client requests
-public class EnrollmentRequest
-{
-    public Student Student { get; set; } = new Student();
-    public Course Course { get; set; } = new Course();
 }
