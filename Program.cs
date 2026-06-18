@@ -1,6 +1,8 @@
 using TmsApi;
 // 1. ALWAYS ADD REQUIRED USINGS AT THE TOP
 using Scalar.AspNetCore;
+using Microsoft.EntityFrameworkCore;
+using TmsApi.Data;
 
 // 2. CREATE THE BUILDER
 var builder = WebApplication.CreateBuilder(args);
@@ -9,6 +11,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddAuthentication("Training");
 builder.Services.AddAuthorization();
 builder.Services.AddControllers(); 
+
+// --- MODULE 5: REGISTER POSTGRESQL DB CONTEXT ---
+// Registers AppDbContext to use PostgreSQL with the connection string from appsettings.json
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // --- EXERCISE 7: REGISTER OPENAPI SERVICE ---
 builder.Services.AddOpenApi(); 
@@ -41,7 +48,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 // --- EXERCISE 7: AUTOMATIC ENVIRONMENT TOGGLE (PRODUCTION VS DEVELOPMENT) ---
-// እዚህ ላይ ኮዱ በራሱ ኮምፒውተሩ ያለበትን ሁነታ አይቶ ይወስናል
+// The application automatically detects the environment mode and updates policies
 if (app.Environment.IsDevelopment()) 
 {
     // In Development only: Expose OpenAPI and Scalar UI

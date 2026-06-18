@@ -1,0 +1,22 @@
+using System;
+
+namespace TmsApi.Entities;
+
+public class Enrollment
+{
+    public int Id { get; set; }
+    
+    public int StudentId { get; set; }
+    
+    public int CourseId { get; set; }
+    
+    // Nullable, as student may be currently enrolled without a grade yet
+    public decimal? Grade { get; set; } 
+    
+    public DateTime EnrolledAt { get; set; } = DateTime.UtcNow;
+
+    // Navigation properties back to entities for relational integrity
+    public Student Student { get; set; } = null!;
+    
+    public Course Course { get; set; } = null!;
+}
